@@ -198,7 +198,7 @@ func filterSweeperWithDependencies(name string, source map[string]*Sweeper) map[
 
 	currentSweeper, ok := source[name]
 	if !ok {
-		log.Printf("[DEBUG] Sweeper has dependency (%s), but that sweeper was not found", name)
+		log.Printf("[WARN] Sweeper has dependency (%s), but that sweeper was not found", name)
 		return result
 	}
 
@@ -232,7 +232,7 @@ func runSweeperWithRegion(region string, s *Sweeper, sweepers map[string]*Sweepe
 				return err
 			}
 		} else {
-			log.Printf("[DEBUG] Sweeper (%s) has dependency (%s), but that sweeper was not found", s.Name, dep)
+			log.Printf("[WARN] Sweeper (%s) has dependency (%s), but that sweeper was not found", s.Name, dep)
 		}
 	}
 
@@ -328,6 +328,11 @@ type TestCase struct {
 	// IDRefreshIgnore is a list of configuration keys that will be ignored.
 	IDRefreshName   string
 	IDRefreshIgnore []string
+
+	// DisableBinaryDriver forces this test case to run using the legacy test
+	// driver, even if the binary test driver has been enabled.
+	// This property will be removed in version 2.0.0 of the SDK.
+	DisableBinaryDriver bool
 }
 
 // TestStep is a single apply sequence of a test, done within the
@@ -551,11 +556,6 @@ func Test(t TestT, c TestCase) {
 		return
 	}
 
-	// Run the PreCheck if we have it
-	if c.PreCheck != nil {
-		c.PreCheck()
-	}
-
 	// get instances of all providers, so we can use the individual
 	// resources to shim the state during the tests.
 	providers := make(map[string]terraform.ResourceProvider)
@@ -567,10 +567,30 @@ func Test(t TestT, c TestCase) {
 		providers[name] = p
 	}
 
-	if acctest.TestHelper != nil {
+	if acctest.TestHelper != nil && c.DisableBinaryDriver == false {
+		// auto-configure all providers
+		for _, p := range providers {
+			err = p.Configure(terraform.NewResourceConfigRaw(nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Run the PreCheck if we have it.
+		// This is done after the auto-configure to allow providers
+		// to override the default auto-configure parameters.
+		if c.PreCheck != nil {
+			c.PreCheck()
+		}
+
 		// inject providers for ImportStateVerify
-		RunLegacyTest(t.(*testing.T), c, providers)
+		RunNewTest(t.(*testing.T), c, providers)
 		return
+	} else {
+		// run the PreCheck if we have it
+		if c.PreCheck != nil {
+			c.PreCheck()
+		}
 	}
 
 	providerResolver, err := testProviderResolver(c)

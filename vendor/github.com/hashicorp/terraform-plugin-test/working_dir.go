@@ -19,6 +19,9 @@ type WorkingDir struct {
 	// baseDir is the root of the working directory tree
 	baseDir string
 
+	// baseArgs is arguments that should be appended to all commands
+	baseArgs []string
+
 	// configDir contains the singular config file generated for each test
 	configDir string
 }
@@ -111,7 +114,9 @@ func (wd *WorkingDir) RequireClearPlan(t TestControl) {
 }
 
 func (wd *WorkingDir) init(pluginDir string) error {
-	return wd.runTerraform("init", "-plugin-dir="+pluginDir, wd.configDir)
+	args := []string{"init"}
+	args = append(args, wd.baseArgs...)
+	return wd.runTerraform(args...)
 }
 
 // Init runs "terraform init" for the given working directory, forcing Terraform
@@ -163,7 +168,10 @@ func (wd *WorkingDir) planFilename() string {
 // CreatePlan runs "terraform plan" to create a saved plan file, which if successful
 // will then be used for the next call to Apply.
 func (wd *WorkingDir) CreatePlan() error {
-	return wd.runTerraform("plan", "-out=tfplan", wd.configDir)
+	args := []string{"plan", "-refresh=false"}
+	args = append(args, wd.baseArgs...)
+	args = append(args, "-out=tfplan", wd.configDir)
+	return wd.runTerraform(args...)
 }
 
 // RequireCreatePlan is a variant of CreatePlan that will fail the test via
@@ -181,13 +189,16 @@ func (wd *WorkingDir) RequireCreatePlan(t TestControl) {
 // this will apply the saved plan. Otherwise, it will implicitly create a new
 // plan and apply it.
 func (wd *WorkingDir) Apply() error {
-	args := []string{"apply"}
+	args := []string{"apply", "-refresh=false"}
+	args = append(args, wd.baseArgs...)
+
 	if wd.HasSavedPlan() {
 		args = append(args, "tfplan")
 	} else {
 		args = append(args, "-auto-approve")
 		args = append(args, wd.configDir)
 	}
+
 	return wd.runTerraform(args...)
 }
 
@@ -207,7 +218,10 @@ func (wd *WorkingDir) RequireApply(t TestControl) {
 // If destroy fails then remote objects might still exist, and continue to
 // exist after a particular test is concluded.
 func (wd *WorkingDir) Destroy() error {
-	args := []string{"destroy", "-auto-approve", wd.configDir}
+	args := []string{"destroy", "-refresh=false"}
+	args = append(args, wd.baseArgs...)
+
+	args = append(args, "-auto-approve", wd.configDir)
 	return wd.runTerraform(args...)
 }
 
@@ -242,13 +256,16 @@ func (wd *WorkingDir) SavedPlan() (*tfjson.Plan, error) {
 	}
 
 	var ret tfjson.Plan
-	err := wd.runTerraformJSON(&ret, "show", "-json", wd.planFilename())
+
+	args := []string{"show"}
+	args = append(args, wd.baseArgs...)
+	args = append(args, "-json", wd.planFilename())
+
+	err := wd.runTerraformJSON(&ret, args...)
 	if err != nil {
 		return nil, err
 	}
-	if err := ret.Validate(); err != nil {
-		return nil, err
-	}
+
 	return &ret, nil
 }
 
@@ -269,13 +286,16 @@ func (wd *WorkingDir) RequireSavedPlan(t TestControl) *tfjson.Plan {
 // If the state cannot be read, State returns an error.
 func (wd *WorkingDir) State() (*tfjson.State, error) {
 	var ret tfjson.State
-	err := wd.runTerraformJSON(&ret, "show", "-json")
+
+	args := []string{"show"}
+	args = append(args, wd.baseArgs...)
+	args = append(args, "-json")
+
+	err := wd.runTerraformJSON(&ret, args...)
 	if err != nil {
 		return nil, err
 	}
-	if err := ret.Validate(); err != nil {
-		return nil, err
-	}
+
 	return &ret, nil
 }
 
@@ -293,7 +313,9 @@ func (wd *WorkingDir) RequireState(t TestControl) *tfjson.State {
 
 // Import runs terraform import
 func (wd *WorkingDir) Import(resource, id string) error {
-	args := []string{"import", "-config=" + wd.configDir, resource, id}
+	args := []string{"import"}
+	args = append(args, wd.baseArgs...)
+	args = append(args, "-config="+wd.configDir, resource, id)
 	return wd.runTerraform(args...)
 }
 
@@ -310,6 +332,9 @@ func (wd *WorkingDir) RequireImport(t TestControl, resource, id string) {
 // Refresh runs terraform refresh
 func (wd *WorkingDir) Refresh() error {
 	args := []string{"refresh"}
+	args = append(args, wd.baseArgs...)
+	args = append(args, "-state="+filepath.Join(wd.baseDir, "terraform.tfstate"))
+	args = append(args, wd.configDir)
 	return wd.runTerraform(args...)
 }
 
@@ -321,4 +346,32 @@ func (wd *WorkingDir) RequireRefresh(t TestControl) {
 		t := testingT{t}
 		t.Fatalf("failed to refresh: %s", err)
 	}
+}
+
+// Schemas returns an object describing the provider schemas.
+//
+// If the schemas cannot be read, Schemas returns an error.
+func (wd *WorkingDir) Schemas() (*tfjson.ProviderSchemas, error) {
+	args := []string{"providers", wd.configDir, "schema"}
+
+	var ret tfjson.ProviderSchemas
+	err := wd.runTerraformJSON(&ret, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ret, nil
+}
+
+// RequireSchemas is a variant of Schemas that will fail the test via
+// the given TestControl if the schemas cannot be read.
+func (wd *WorkingDir) RequireSchemas(t TestControl) *tfjson.ProviderSchemas {
+	t.Helper()
+
+	ret, err := wd.Schemas()
+	if err != nil {
+		t := testingT{t}
+		t.Fatalf("failed to read schemas: %s", err)
+	}
+	return ret
 }

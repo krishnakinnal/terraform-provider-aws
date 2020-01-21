@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	tftest "github.com/apparentlymart/terraform-plugin-test"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-sdk/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/internal/addrs"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	tftest "github.com/hashicorp/terraform-plugin-test"
 )
 
 func testStepNewImportState(t *testing.T, c TestCase, wd *tftest.WorkingDir, step TestStep, cfg string) error {
@@ -44,25 +44,8 @@ func testStepNewImportState(t *testing.T, c TestCase, wd *tftest.WorkingDir, ste
 	}
 	importId = step.ImportStateIdPrefix + importId
 
-	// create working directory for import tests
+	// Create working directory for import tests
 	if step.Config == "" {
-		// I can't understand how the previous framework
-		// managed to set this to just an empty provider block cfg
-		// it must have somehow piggy backed the last non import step config??
-
-		/*
-			if step.ImportState {
-				if step.Config == "" {
-					step.Config = testProviderConfig(c)
-				}
-
-				// Can optionally set step.Config in addition to
-				// step.ImportState, to provide config for the import.
-				state, err = testStepImportState(opts, state, step)
-			}
-		*/
-
-		// this is what I think should be done
 		step.Config = cfg
 		if step.Config == "" {
 			t.Fatal("Cannot import state with no specified config")

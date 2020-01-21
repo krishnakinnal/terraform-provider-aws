@@ -3,9 +3,9 @@ package resource
 import (
 	"testing"
 
-	tftest "github.com/apparentlymart/terraform-plugin-test"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	tftest "github.com/hashicorp/terraform-plugin-test"
 )
 
 func testStepNewConfig(t *testing.T, c TestCase, wd *tftest.WorkingDir, step TestStep) error {
@@ -49,7 +49,7 @@ func testStepNewConfig(t *testing.T, c TestCase, wd *tftest.WorkingDir, step Tes
 			t.Log("[INFO] Got non-empty plan, as expected")
 		} else {
 
-			t.Fatalf("After applying this step, the plan was not empty. %s", spewConf.Sdump(plan)) // TODO error message
+			t.Fatalf("After applying this test step, the plan was not empty. %s", spewConf.Sdump(plan))
 		}
 	}
 
@@ -57,8 +57,6 @@ func testStepNewConfig(t *testing.T, c TestCase, wd *tftest.WorkingDir, step Tes
 	if !c.PreventPostDestroyRefresh {
 		wd.RequireRefresh(t)
 	}
-
-	// TODO deal with the data resources instantiated during refresh
 
 	// do another plan
 	wd.RequireCreatePlan(t)
@@ -70,7 +68,7 @@ func testStepNewConfig(t *testing.T, c TestCase, wd *tftest.WorkingDir, step Tes
 			t.Log("[INFO] Got non-empty plan, as expected")
 		} else {
 
-			t.Fatalf("After applying this step, the plan was not empty. %s", spewConf.Sdump(plan)) // TODO error message
+			t.Fatalf("After applying this test step and performing a `terraform refresh`, the plan was not empty. %s", spewConf.Sdump(plan))
 		}
 	}
 
