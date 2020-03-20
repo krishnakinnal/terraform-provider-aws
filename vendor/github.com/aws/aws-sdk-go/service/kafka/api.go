@@ -1051,6 +1051,97 @@ func (c *Kafka) ListClustersPagesWithContext(ctx aws.Context, input *ListCluster
 	return p.Err()
 }
 
+const opListNodes = "ListNodes"
+
+// ListNodesRequest generates a "aws/request.Request" representing the
+// client's request for the ListNodes operation. The "output" return
+// value will be populated with the request's response once the request completes
+// successfully.
+//
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
+//
+// See ListNodes for more information on using the ListNodes
+// API call, and error handling.
+//
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
+//
+//    // Example sending a request using the ListNodesRequest method.
+//    req, resp := client.ListNodesRequest(params)
+//
+//    err := req.Send()
+//    if err == nil { // resp is now filled
+//        fmt.Println(resp)
+//    }
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/kafka-2020-03-05/ListNodes
+func (c *Kafka) ListNodesRequest(input *ListNodesInput) (req *request.Request, output *ListNodesOutput) {
+	op := &request.Operation{
+		Name:       opListNodes,
+		HTTPMethod: "GET",
+		HTTPPath:   "/v1/clusters/{clusterArn}/nodes",
+	}
+
+	if input == nil {
+		input = &ListNodesInput{}
+	}
+
+	output = &ListNodesOutput{}
+	req = c.newRequest(op, input, output)
+	return
+}
+
+// ListNodes API operation for Managed Streaming for Kafka.
+//
+// A list of brokers that a client application can use to bootstrap.
+//
+// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
+// with awserr.Error's Code and Message methods to get detailed information about
+// the error.
+//
+// See the AWS API reference guide for Managed Streaming for Kafka's
+// API operation GetBootstrapBrokers for usage and error information.
+//
+// Returned Error Types:
+//   * BadRequestException
+//   Returns information about an error.
+//
+//   * UnauthorizedException
+//   Returns information about an error.
+//
+//   * InternalServerErrorException
+//   Returns information about an error.
+//
+//   * ConflictException
+//   Returns information about an error.
+//
+//   * ForbiddenException
+//   Returns information about an error.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/kafka-2020-03-05/ListNodes
+func (c *Kafka) ListNodes(input *ListNodesInput) (*ListNodesOutput, error) {
+	req, out := c.ListNodesRequest(input)
+	return out, req.Send()
+}
+
+// ListNodesWithContext is the same as ListNodes with the addition of
+// the ability to pass a context and additional request options.
+//
+// See ListNodes for details on how to use this API operation.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *Kafka) ListNodesWithContext(ctx aws.Context, input *ListNodesInput, opts ...request.Option) (*ListNodesOutput, error) {
+	req, out := c.ListNodesRequest(input)
+	req.SetContext(ctx)
+	req.ApplyOptions(opts...)
+	return out, req.Send()
+}
+
 const opListConfigurationRevisions = "ListConfigurationRevisions"
 
 // ListConfigurationRevisionsRequest generates a "aws/request.Request" representing the
@@ -4921,6 +5012,69 @@ func (s *ListConfigurationsOutput) SetConfigurations(v []*Configuration) *ListCo
 func (s *ListConfigurationsOutput) SetNextToken(v string) *ListConfigurationsOutput {
 	s.NextToken = &v
 	return s
+}
+
+type ListNodesInput struct {
+	_ struct{} `type:"structure"`
+
+	// ClusterArn is a required field
+	ClusterArn *string `location:"uri" locationName:"clusterArn" type:"string" required:"true"`
+}
+
+// String returns the string representation
+func (s ListNodesInput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s ListNodesInput) GoString() string {
+	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *ListNodesInput) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "ListNodesInput"}
+	if s.ClusterArn == nil {
+		invalidParams.Add(request.NewErrParamRequired("ClusterArn"))
+	}
+	if s.ClusterArn != nil && len(*s.ClusterArn) < 1 {
+		invalidParams.Add(request.NewErrParamMinLen("ClusterArn", 1))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
+// SetClusterArn sets the ClusterArn field's value.
+func (s *ListNodesInput) SetClusterArn(v string) *ListNodesInput {
+	s.ClusterArn = &v
+	return s
+}
+
+// Returns a string containing one or more hostname:port pairs.
+type ListNodesOutput struct {
+	_ struct{} `type:"structure"`
+
+    /*
+	// A string containing details about brokers for a cluster.
+	ListNodesString *string `locationName:"listNodesString" type:"string"`
+	*/
+	// TODO: need to add the listnodes structure from https://docs.aws.amazon.com/msk/1.0/apireference/clusters-clusterarn-nodes.html
+	// ListNodesResponse
+	// InstanceType
+	// BrokerNodeInfo
+}
+
+// String returns the string representation
+func (s ListNodesOutput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s ListNodesOutput) GoString() string {
+	return s.String()
 }
 
 type ListKafkaVersionsInput struct {

@@ -201,6 +201,10 @@ func resourceAwsMskCluster() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(1, 64),
 			},
+			"list_nodes": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"number_of_broker_nodes": {
 				Type:     schema.TypeInt,
 				Required: true,
@@ -355,11 +359,22 @@ func resourceAwsMskClusterRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("failed requesting bootstrap broker info for %q : %s", d.Id(), err)
 	}
 
+	nodesOut, err := conn.ListNodes(&kafka.ListNodesInput{
+		ClusterArn: aws.String(d.Id()),
+	})
+	if err != nil {
+		return fmt.Errorf("failed requesting list nodes infor for %q : %s", d.Id(), err)
+	}
+
 	cluster := out.ClusterInfo
 
 	d.Set("arn", aws.StringValue(cluster.ClusterArn))
 	d.Set("bootstrap_brokers", aws.StringValue(brokerOut.BootstrapBrokerString))
 	d.Set("bootstrap_brokers_tls", aws.StringValue(brokerOut.BootstrapBrokerStringTls))
+
+	if err := d.Set("list_nodes", flattenMskNodeInfoList(nodesOut)); err != nil {
+		return fmt.Errorf("error setting list_nodes: %s", err)
+	}
 
 	if err := d.Set("broker_node_group_info", flattenMskBrokerNodeGroupInfo(cluster.BrokerNodeGroupInfo)); err != nil {
 		return fmt.Errorf("error setting broker_node_group_info: %s", err)
@@ -738,6 +753,21 @@ func flattenMskEncryptionInTransit(eit *kafka.EncryptionInTransit) []map[string]
 	m := map[string]interface{}{
 		"client_broker": aws.StringValue(eit.ClientBroker),
 		"in_cluster":    aws.BoolValue(eit.InCluster),
+	}
+
+	return []map[string]interface{}{m}
+}
+
+func flattenMskNodeInfoList(l *kafka.ListNodesOutput) []map[string]interface{} {
+	if l == nil {
+		return []map[string]interface{}{}
+	}
+
+	m := map[string]interface{}{
+		"instance_type": aws.StringValue(l.NodeInfoList.InstanceType),
+	}
+	if l.NodeInfoList.BrokerNodeInfo != nil {
+		m["client_vpc_ip_address"] = aws.StringValue(l.NodeInfoList.BrokerNodeInfo.ClientVpcIpAddress)
 	}
 
 	return []map[string]interface{}{m}
